@@ -1,16 +1,19 @@
-exports.handler = async function(event, context) {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+export default async (request, context) => {
+  if (request.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405 });
   }
-
-  const apiKey = event.headers['x-api-key'];
+ 
+  const apiKey = request.headers.get('x-api-key');
   if (!apiKey) {
-    return { statusCode: 400, body: JSON.stringify({ error: { message: 'No API key provided' } }) };
+    return new Response(JSON.stringify({ error: { message: 'No API key provided' } }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
-
+ 
   try {
-    const body = JSON.parse(event.body);
-
+    const body = await request.json();
+ 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -20,21 +23,23 @@ exports.handler = async function(event, context) {
       },
       body: JSON.stringify(body)
     });
-
+ 
     const data = await response.json();
-
-    return {
-      statusCode: response.status,
+ 
+    return new Response(JSON.stringify(data), {
+      status: response.status,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify(data)
-    };
+      }
+    });
   } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: { message: 'Proxy error: ' + err.message } })
-    };
+    return new Response(JSON.stringify({ error: { message: 'Proxy error: ' + err.message } }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 };
+ 
+export const config = { path: '/api/chat' };
+ 
